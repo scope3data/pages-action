@@ -22095,7 +22095,7 @@ try {
     delay=10
 
     export CLOUDFLARE_API_TOKEN="${apiToken}"
-    ${accountId && `export CLOUDFLARE_ACCOUNT_ID="${accountId}"`}
+		${accountId ? `export CLOUDFLARE_ACCOUNT_ID="${accountId}"` : ""}
 
     while [ $retries -lt $max_retries ]; do
       if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
