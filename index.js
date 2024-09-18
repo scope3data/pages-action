@@ -22094,9 +22094,6 @@ try {
     max_retries=${maxRetries}
     delay=10
 
-    export CLOUDFLARE_API_TOKEN="${apiToken}"
-		${accountId ? `export CLOUDFLARE_ACCOUNT_ID="${accountId}"` : ""}
-
     while [ $retries -lt $max_retries ]; do
       if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
         echo "Deploy successful"
@@ -22113,9 +22110,14 @@ try {
         exit 1
       fi
     done
+		exit 0
     `;
     await src_default.in(import_node_path.default.join(process.cwd(), workingDirectory))`
-			$$ ${command}
+		$ export CLOUDFLARE_API_TOKEN="${apiToken}"
+		if ${accountId} {
+			$ export CLOUDFLARE_ACCOUNT_ID="${accountId}"
+		}
+		$$ ${command}
     `;
     const response = await (0, import_undici.fetch)(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${projectName}/deployments`,

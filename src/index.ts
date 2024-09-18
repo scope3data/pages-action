@@ -45,9 +45,6 @@ try {
     max_retries=${maxRetries}
     delay=10
 
-    export CLOUDFLARE_API_TOKEN="${apiToken}"
-		${accountId ? `export CLOUDFLARE_ACCOUNT_ID="${accountId}"` : ""}
-
     while [ $retries -lt $max_retries ]; do
       if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
         echo "Deploy successful"
@@ -64,11 +61,16 @@ try {
         exit 1
       fi
     done
+		exit 0
     `;
 
 		// TODO: Replace this with an API call to wrangler so we can get back a full deployment response object
 		await shellac.in(path.join(process.cwd(), workingDirectory))`
-			$$ ${command}
+		$ export CLOUDFLARE_API_TOKEN="${apiToken}"
+		if ${accountId} {
+			$ export CLOUDFLARE_ACCOUNT_ID="${accountId}"
+		}
+		$$ ${command}
     `;
 
 		const response = await fetch(
