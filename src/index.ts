@@ -48,7 +48,7 @@ try {
     while [ $retries -lt $max_retries ]; do
       if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
         echo "Deploy successful"
-        break
+				exit 0
       else
         retries=$((retries + 1))
         echo "Attempt $retries/$max_retries failed, retrying in $delay seconds..."
@@ -61,7 +61,6 @@ try {
         exit 1
       fi
     done
-		exit 0
     `;
 
 		// TODO: Replace this with an API call to wrangler so we can get back a full deployment response object

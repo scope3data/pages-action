@@ -22097,7 +22097,7 @@ try {
     while [ $retries -lt $max_retries ]; do
       if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
         echo "Deploy successful"
-        break
+				exit 0
       else
         retries=$((retries + 1))
         echo "Attempt $retries/$max_retries failed, retrying in $delay seconds..."
@@ -22110,7 +22110,6 @@ try {
         exit 1
       fi
     done
-		exit 0
     `;
     await src_default.in(import_node_path.default.join(process.cwd(), workingDirectory))`
 		$ export CLOUDFLARE_API_TOKEN="${apiToken}"
