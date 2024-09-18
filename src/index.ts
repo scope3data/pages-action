@@ -16,6 +16,7 @@ try {
 	const gitHubToken = getInput("gitHubToken", { required: false });
 	const branch = getInput("branch", { required: false });
 	const workingDirectory = getInput("workingDirectory", { required: false });
+	const maxRetries = getInput("maxRetries", { required: false }) || 5;
 	const wranglerVersion = getInput("wranglerVersion", { required: false });
 
 	const getProject = async () => {
@@ -39,14 +40,37 @@ try {
 	};
 
 	const createPagesDeployment = async () => {
-		// TODO: Replace this with an API call to wrangler so we can get back a full deployment response object
-		await shellac.in(path.join(process.cwd(), workingDirectory))`
-    $ export CLOUDFLARE_API_TOKEN="${apiToken}"
+		const command = `
+    retries=0
+    max_retries=${maxRetries}
+    delay=10
+
+		$ export CLOUDFLARE_API_TOKEN="${apiToken}"
     if ${accountId} {
       $ export CLOUDFLARE_ACCOUNT_ID="${accountId}"
     }
-  
-    $$ npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"
+
+    while [ $retries -lt $max_retries ]; do
+      if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
+        echo "Deploy successful"
+        break
+      else
+        retries=$((retries + 1))
+        echo "Attempt $retries/$max_retries failed, retrying in $delay seconds..."
+        sleep $delay
+        delay=$((delay * 2))  # Exponential backoff
+      fi
+
+      if [ $retries -eq $max_retries ]; then
+        echo "Max retries reached. Deploy failed."
+        exit 1
+      fi
+    done
+    `;
+
+		// TODO: Replace this with an API call to wrangler so we can get back a full deployment response object
+		await shellac.in(path.join(process.cwd(), workingDirectory))`
+			$$ ${command}
     `;
 
 		const response = await fetch(
@@ -143,7 +167,7 @@ try {
 
 		let gitHubDeployment: Awaited<ReturnType<typeof createGitHubDeployment>>;
 
-		if (gitHubToken && gitHubToken.length) {
+		if (gitHubToken?.length) {
 			const octokit = getOctokit(gitHubToken);
 			gitHubDeployment = await createGitHubDeployment(octokit, productionEnvironment, environmentName);
 		}

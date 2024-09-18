@@ -22069,6 +22069,7 @@ try {
   const gitHubToken = (0, import_core.getInput)("gitHubToken", { required: false });
   const branch = (0, import_core.getInput)("branch", { required: false });
   const workingDirectory = (0, import_core.getInput)("workingDirectory", { required: false });
+  const maxRetries = (0, import_core.getInput)("maxRetries", { required: false }) || 5;
   const wranglerVersion = (0, import_core.getInput)("wranglerVersion", { required: false });
   const getProject = async () => {
     const response = await (0, import_undici.fetch)(
@@ -22088,13 +22089,35 @@ try {
     return result;
   };
   const createPagesDeployment = async () => {
-    await src_default.in(import_node_path.default.join(process.cwd(), workingDirectory))`
-    $ export CLOUDFLARE_API_TOKEN="${apiToken}"
+    const command = `
+    retries=0
+    max_retries=${maxRetries}
+    delay=10
+
+		$ export CLOUDFLARE_API_TOKEN="${apiToken}"
     if ${accountId} {
       $ export CLOUDFLARE_ACCOUNT_ID="${accountId}"
     }
-  
-    $$ npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"
+
+    while [ $retries -lt $max_retries ]; do
+      if npx wrangler@${wranglerVersion} pages publish "${directory}" --project-name="${projectName}" --branch="${branch}"; then
+        echo "Deploy successful"
+        break
+      else
+        retries=$((retries + 1))
+        echo "Attempt $retries/$max_retries failed, retrying in $delay seconds..."
+        sleep $delay
+        delay=$((delay * 2))  # Exponential backoff
+      fi
+
+      if [ $retries -eq $max_retries ]; then
+        echo "Max retries reached. Deploy failed."
+        exit 1
+      fi
+    done
+    `;
+    await src_default.in(import_node_path.default.join(process.cwd(), workingDirectory))`
+			$$ ${command}
     `;
     const response = await (0, import_undici.fetch)(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${projectName}/deployments`,
@@ -22168,7 +22191,7 @@ try {
     const productionEnvironment = githubBranch === project.production_branch || branch === project.production_branch;
     const environmentName = `${projectName} (${productionEnvironment ? "Production" : "Preview"})`;
     let gitHubDeployment;
-    if (gitHubToken && gitHubToken.length) {
+    if (gitHubToken?.length) {
       const octokit = (0, import_github.getOctokit)(gitHubToken);
       gitHubDeployment = await createGitHubDeployment(octokit, productionEnvironment, environmentName);
     }
