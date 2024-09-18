@@ -69,7 +69,10 @@ try {
 		if ${accountId} {
 			$ export CLOUDFLARE_ACCOUNT_ID="${accountId}"
 		}
-		$$ ${command}
+		
+		exits {
+			$$ ${command}
+		}
     `;
 
 		const response = await fetch(
